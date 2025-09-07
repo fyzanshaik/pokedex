@@ -1,3 +1,6 @@
-Pokedex > Your command was: charmander
-Pokedex > Your command was: pikachu
-Pokedex > 
+Welcome to the Pokedex!
+Pokedex > Usage: 
+
+- help: Displays a help message
+- exit: Exit the Pokedex
+Pokedex > Closing the Pokedex... Goodbye!
