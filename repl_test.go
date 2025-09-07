@@ -56,7 +56,7 @@ func TestCommandHelp(t *testing.T) {
 }
 
 func TestSupportedCommandsMap(t *testing.T) {
-	expectedCommands := []string{"exit", "help", "map", "mapb"}
+	expectedCommands := []string{"exit", "help", "map", "mapb", "explore"}
 
 	for _, cmdName := range expectedCommands {
 		if _, exists := supportedCommands[cmdName]; !exists {

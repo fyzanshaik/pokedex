@@ -20,7 +20,7 @@ func cleanInput(text string) []string {
 type cliCommands struct {
 	name        string
 	description string
-	callback    func(c *pokeapi.Config) error
+	callback    func(c *pokeapi.Config, args ...string) error
 }
 
 const INTRO_STRING string = "Pokedex > "
@@ -53,6 +53,11 @@ func init() {
 			description: "Displays previous 20 locations if it exists",
 			callback:    commandMapBack,
 		},
+		"explore": {
+			name:        "explore",
+			description: "Explore a location area to find Pokemon. Usage: explore <location-name>",
+			callback:    commandExplore,
+		},
 	}
 	interval := time.Duration(time.Second * 10)
 	cache := pokecache.NewCache(interval)
@@ -71,7 +76,7 @@ func printLocations(locations []pokeapi.Result) {
 
 }
 
-func commandMap(c *pokeapi.Config) error {
+func commandMap(c *pokeapi.Config, args ...string) error {
 	allLocations, err := pokeapi.GetNextLocations(c)
 	// fmt.Println(locationArea)
 	if err != nil {
@@ -82,7 +87,7 @@ func commandMap(c *pokeapi.Config) error {
 	return nil
 }
 
-func commandMapBack(c *pokeapi.Config) error {
+func commandMapBack(c *pokeapi.Config, args ...string) error {
 	allLocations, err := pokeapi.GetPrevLocations(c)
 	// fmt.Println(locationArea)
 	if err != nil {
@@ -93,18 +98,44 @@ func commandMapBack(c *pokeapi.Config) error {
 	return nil
 }
 
-func commandExit(c *pokeapi.Config) error {
+func commandExit(c *pokeapi.Config, args ...string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp(c *pokeapi.Config) error {
+func commandHelp(c *pokeapi.Config, args ...string) error {
 	fmt.Println("Usage:")
 	for cmdName, cmd := range supportedCommands {
 		fmt.Printf("- %s: %s\n", cmdName, cmd.description)
 	}
 	fmt.Println()
+	return nil
+}
+
+func commandExplore(c *pokeapi.Config, args ...string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("you must provide a location name. Usage: explore <location-name>")
+	}
+
+	locationName := args[0]
+	fmt.Printf("Exploring %s...\n", locationName)
+
+	locationInfo, err := pokeapi.GetLocationInformation(c, locationName)
+	if err != nil {
+		return fmt.Errorf("Error exploring location: %w", err)
+	}
+
+	if len(locationInfo.PokemonEncounters) == 0 {
+		fmt.Println("Found no Pokemon in this area.")
+		return nil
+	}
+
+	fmt.Println("Found Pokemon:")
+	for _, encounter := range locationInfo.PokemonEncounters {
+		fmt.Printf(" - %s\n", encounter.Pokemon.Name)
+	}
+
 	return nil
 }
 
@@ -122,7 +153,9 @@ func main() {
 		if command, ok := supportedCommands[commandToExpect]; ok == false {
 			fmt.Println("Command not found check listed commands through 'usage'")
 		} else {
-			if err := supportedCommands[command.name].callback(&userConfig); err != nil {
+			// Pass remaining arguments to the command
+			args := userInput[1:]
+			if err := supportedCommands[command.name].callback(&userConfig, args...); err != nil {
 				fmt.Println(err)
 			}
 		}
