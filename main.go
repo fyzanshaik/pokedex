@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	pokeapi "github.com/fyzanshaik/pokedex/internal"
 )
 
 func cleanInput(text string) []string {
@@ -16,7 +18,7 @@ func cleanInput(text string) []string {
 type cliCommands struct {
 	name        string
 	description string
-	callback    func() error
+	callback    func(c *pokeapi.Config) error
 }
 
 const INTRO_STRING string = "Pokedex > "
@@ -24,6 +26,7 @@ const USER_INPUT_PREFIX string = "Your command was: "
 const WELCOME_STRING string = "Welcome to the Pokedex!"
 
 var supportedCommands map[string]cliCommands
+var userConfig pokeapi.Config
 
 func init() {
 	supportedCommands = map[string]cliCommands{
@@ -37,20 +40,63 @@ func init() {
 			description: "Displays a help message",
 			callback:    commandHelp,
 		},
+		"map": {
+			name:        "map",
+			description: "Displays 20 locations to explore, each subsequent request displays the next set",
+			callback:    commandMap,
+		},
+		"mapb": {
+			name:        "mapb",
+			description: "Displays previous 20 locations if it exists",
+			callback:    commandMapBack,
+		},
+	}
+	userConfig = pokeapi.Config{
+		Next:     "",
+		Previous: "",
 	}
 }
 
-func commandExit() error {
+func commandMap(c *pokeapi.Config) error {
+	locationArea, err := pokeapi.GetNextLocations(c)
+	// fmt.Println(locationArea)
+	if err != nil {
+		return fmt.Errorf("Error fetching locations: %w", err)
+	}
+	locations := locationArea.Results
+	for _, location := range locations {
+		fmt.Printf("%s\n", location.Name)
+	}
+	fmt.Println()
+	return nil
+}
+
+func commandMapBack(c *pokeapi.Config) error {
+	locationArea, err := pokeapi.GetPrevLocations(c)
+	// fmt.Println(locationArea)
+	if err != nil {
+		return fmt.Errorf("Error fetching locations: %w", err)
+	}
+	locations := locationArea.Results
+	for _, location := range locations {
+		fmt.Printf("%s\n", location.Name)
+	}
+	fmt.Println()
+	return nil
+}
+
+func commandExit(c *pokeapi.Config) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp() error {
+func commandHelp(c *pokeapi.Config) error {
 	fmt.Println("Usage: \n")
 	for cmdName, cmd := range supportedCommands {
 		fmt.Printf("- %s: %s\n", cmdName, cmd.description)
 	}
+	fmt.Println()
 	return nil
 }
 
@@ -66,11 +112,10 @@ func main() {
 		if command, ok := supportedCommands[commandToExpect]; ok == false {
 			fmt.Println("Command not found check listed commands through 'usage'")
 		} else {
-			if err := supportedCommands[command.name].callback(); err != nil {
-				fmt.Println("Error running the command: %w", err)
+			if err := supportedCommands[command.name].callback(&userConfig); err != nil {
+				fmt.Println(err)
 			}
 		}
 
 	}
-
 }
