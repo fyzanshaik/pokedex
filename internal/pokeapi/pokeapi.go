@@ -12,9 +12,10 @@ import (
 const BASE_URL string = "https://pokeapi.co/api/v2"
 
 type Config struct {
-	Next     string
-	Previous string
-	Cache    *pokecache.Cache
+	Next          string
+	Previous      string
+	Cache         *pokecache.Cache
+	CaughtPokemon map[string]Pokemon
 }
 
 type Result struct {
@@ -446,6 +447,43 @@ func GetLocationInformation(c *Config, locationName string) (LocationInformation
 	}
 
 	return locationInfo, nil
+}
+
+// GET https://pokeapi.co/api/v2/pokemon/{name}/
+func GetPokemon(c *Config, pokemonName string) (Pokemon, error) {
+	var pokemon Pokemon
+	resourceName := "/pokemon/" + pokemonName
+	full_url := BASE_URL + resourceName
+
+	if cachedData, found := c.Cache.Get(full_url); found {
+		fmt.Println("Accessing cache for: ", full_url)
+		err := json.Unmarshal(cachedData, &pokemon)
+		if err != nil {
+			return Pokemon{}, fmt.Errorf("Error unmarshaling cached data: %w", err)
+		}
+		return pokemon, nil
+	}
+
+	res, err := http.Get(full_url)
+	if err != nil {
+		return Pokemon{}, fmt.Errorf("Error in network request pokemon: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return Pokemon{}, fmt.Errorf("Error reading Body: %w", err)
+	}
+
+	c.Cache.Add(full_url, body)
+
+	err = json.Unmarshal(body, &pokemon)
+	if err != nil {
+		return Pokemon{}, fmt.Errorf("Error unmarshaling response: %w", err)
+	}
+
+	return pokemon, nil
 }
 
 // GET https://pokeapi.co/api/v2/location-area/{id or name}/
