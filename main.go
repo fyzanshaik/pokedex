@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
-	pokeapi "github.com/fyzanshaik/pokedex/internal"
+	"github.com/fyzanshaik/pokedex/internal/pokeapi"
+	"github.com/fyzanshaik/pokedex/internal/pokecache"
 )
 
 func cleanInput(text string) []string {
@@ -29,6 +31,7 @@ var supportedCommands map[string]cliCommands
 var userConfig pokeapi.Config
 
 func init() {
+
 	supportedCommands = map[string]cliCommands{
 		"exit": {
 			name:        "exit",
@@ -51,37 +54,42 @@ func init() {
 			callback:    commandMapBack,
 		},
 	}
+	interval := time.Duration(time.Second * 10)
+	cache := pokecache.NewCache(interval)
 	userConfig = pokeapi.Config{
 		Next:     "",
 		Previous: "",
+		Cache:    cache,
 	}
 }
 
+func printLocations(locations []pokeapi.Result) {
+	for i := 0; i < len(locations); i++ {
+		fmt.Printf("%d => %s\n", i+1, locations[i].Name)
+	}
+	fmt.Println()
+
+}
+
 func commandMap(c *pokeapi.Config) error {
-	locationArea, err := pokeapi.GetNextLocations(c)
+	allLocations, err := pokeapi.GetNextLocations(c)
 	// fmt.Println(locationArea)
 	if err != nil {
 		return fmt.Errorf("Error fetching locations: %w", err)
 	}
-	locations := locationArea.Results
-	for _, location := range locations {
-		fmt.Printf("%s\n", location.Name)
-	}
-	fmt.Println()
+	locations := allLocations.Results
+	printLocations(locations)
 	return nil
 }
 
 func commandMapBack(c *pokeapi.Config) error {
-	locationArea, err := pokeapi.GetPrevLocations(c)
+	allLocations, err := pokeapi.GetPrevLocations(c)
 	// fmt.Println(locationArea)
 	if err != nil {
 		return fmt.Errorf("Error fetching locations: %w", err)
 	}
-	locations := locationArea.Results
-	for _, location := range locations {
-		fmt.Printf("%s\n", location.Name)
-	}
-	fmt.Println()
+	locations := allLocations.Results
+	printLocations(locations)
 	return nil
 }
 
@@ -92,7 +100,7 @@ func commandExit(c *pokeapi.Config) error {
 }
 
 func commandHelp(c *pokeapi.Config) error {
-	fmt.Println("Usage: \n")
+	fmt.Println("Usage:")
 	for cmdName, cmd := range supportedCommands {
 		fmt.Printf("- %s: %s\n", cmdName, cmd.description)
 	}
@@ -107,7 +115,9 @@ func main() {
 		fmt.Print(INTRO_STRING)
 		scanner.Scan()
 		userInput := cleanInput(scanner.Text())
-
+		if len(userInput) == 0 {
+			continue
+		}
 		commandToExpect := userInput[0]
 		if command, ok := supportedCommands[commandToExpect]; ok == false {
 			fmt.Println("Command not found check listed commands through 'usage'")
